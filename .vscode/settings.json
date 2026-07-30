@@ -1,0 +1,19 @@
+{
+  "json.schemas": [
+    {
+      "fileMatch": [
+        "submissions/*.json",
+        "registry/*.json"
+      ],
+      "url": "./schema/convention.schema.json"
+    }
+  ],
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[markdown]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
+}
