@@ -1,7 +1,10 @@
 {
   "uuid": "e4dbf0b7-7a00-4ce6-b23e-484292014ab4",
   "name": "cs",
-  "namespace": "cs",
+  "namespace": {
+    "style": "nested",
+    "key": "cs"
+  },
   "title": "Coordinate Set Convention",
   "description": "Encodes the coordinate structure of a Zarr array following the CF Metadata Conventions model. Supports Cartesian, curvilinear, and parametric coordinate sets including auxiliary coordinate variables, bounds, formula terms, and CF coordinate typing. Designed to be composed with other conventions for CRS, projection, and domain-specific metadata.",
   "spec_url": "https://github.com/R-CF/zarr_conventions_cs/blob/main/README.md",

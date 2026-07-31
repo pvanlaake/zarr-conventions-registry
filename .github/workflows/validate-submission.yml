@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - "submissions/**.json"
+      - "registry/**.json"
 
 jobs:
   validate:
@@ -11,26 +12,49 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      - name: Install ajv-cli
+      - name: Install dependencies
         run: npm install -g ajv-cli ajv-formats
 
-      - name: Find changed submission files
+      - name: Identify changed files
         id: changed
         run: |
           git fetch origin ${{ github.base_ref }}
-          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'submissions/**.json' | tr '\n' ' ')
-          echo "files=$CHANGED" >> $GITHUB_OUTPUT
+          NEW=$(git diff --name-only --diff-filter=A origin/${{ github.base_ref }}...HEAD -- 'submissions/**.json' | tr '\n' ' ')
+          MOD=$(git diff --name-only --diff-filter=M origin/${{ github.base_ref }}...HEAD -- 'registry/**.json' | tr '\n' ' ')
+          OTHER_SUB=$(git diff --name-only --diff-filter=M origin/${{ github.base_ref }}...HEAD -- 'submissions/**.json' | tr '\n' ' ')
+          OTHER_REG=$(git diff --name-only --diff-filter=A origin/${{ github.base_ref }}...HEAD -- 'registry/**.json' | tr '\n' ' ')
+          echo "new_submissions=$NEW" >> $GITHUB_OUTPUT
+          echo "modified_registry=$MOD" >> $GITHUB_OUTPUT
+          echo "modified_submissions=$OTHER_SUB" >> $GITHUB_OUTPUT
+          echo "added_registry=$OTHER_REG" >> $GITHUB_OUTPUT
 
-      - name: Validate changed files against schema
-        if: steps.changed.outputs.files != ''
+      - name: Reject direct modifications to submissions
+        if: steps.changed.outputs.modified_submissions != ''
         run: |
-          for file in ${{ steps.changed.outputs.files }}; do
+          echo "ERROR: Existing submission files may not be modified directly."
+          echo "To correct a submission, close this PR, delete the submission file, and open a new PR."
+          exit 1
+
+      - name: Reject direct additions to registry
+        if: steps.changed.outputs.added_registry != ''
+        run: |
+          echo "ERROR: Conventions may not be added directly to registry/."
+          echo "Submit a new convention via submissions/ instead."
+          exit 1
+
+      # ── New submission checks ────────────────────────────────────────────
+      - name: Validate new submissions against schema
+        if: steps.changed.outputs.new_submissions != ''
+        run: |
+          for file in ${{ steps.changed.outputs.new_submissions }}; do
             echo "Validating $file..."
             ajv validate \
               -s schema/convention.schema.json \
@@ -40,9 +64,9 @@ jobs:
           done
 
       - name: Check filename matches UUID
-        if: steps.changed.outputs.files != ''
+        if: steps.changed.outputs.new_submissions != ''
         run: |
-          for file in ${{ steps.changed.outputs.files }}; do
+          for file in ${{ steps.changed.outputs.new_submissions }}; do
             UUID=$(basename "$file" .json)
             ENTRY_UUID=$(jq -r '.uuid' "$file")
             if [ "$UUID" != "$ENTRY_UUID" ]; then
@@ -51,24 +75,22 @@ jobs:
             fi
           done
 
-      - name: Check no CDG-only fields set by submitter
-        if: steps.changed.outputs.files != ''
+      - name: Check CDG-only fields not set by submitter
+        if: steps.changed.outputs.new_submissions != ''
         run: |
-          for file in ${{ steps.changed.outputs.files }}; do
-            if jq -e '.registered' "$file" > /dev/null 2>&1; then
-              echo "ERROR: 'registered' field must not be set by submitter in $file"
-              exit 1
-            fi
-            if jq -e '.status_changed' "$file" > /dev/null 2>&1; then
-              echo "ERROR: 'status_changed' field must not be set by submitter in $file"
-              exit 1
-            fi
+          for file in ${{ steps.changed.outputs.new_submissions }}; do
+            for field in registered status_changed; do
+              if jq -e ".$field" "$file" > /dev/null 2>&1; then
+                echo "ERROR: '$field' must not be set by submitter in $file"
+                exit 1
+              fi
+            done
           done
 
-      - name: Check UUID uniqueness across registry
-        if: steps.changed.outputs.files != ''
+      - name: Check UUID uniqueness
+        if: steps.changed.outputs.new_submissions != ''
         run: |
-          for file in ${{ steps.changed.outputs.files }}; do
+          for file in ${{ steps.changed.outputs.new_submissions }}; do
             UUID=$(jq -r '.uuid' "$file")
             EXISTING=$(grep -r "\"uuid\": \"$UUID\"" registry/ 2>/dev/null || true)
             if [ -n "$EXISTING" ]; then
@@ -77,14 +99,106 @@ jobs:
             fi
           done
 
-      - name: Check namespace uniqueness across registry
-        if: steps.changed.outputs.files != ''
+      - name: Check namespace uniqueness
+        if: steps.changed.outputs.new_submissions != ''
         run: |
-          for file in ${{ steps.changed.outputs.files }}; do
-            NS=$(jq -r '.namespace' "$file")
-            EXISTING=$(grep -r "\"namespace\": \"$NS\"" registry/ 2>/dev/null || true)
+          for file in ${{ steps.changed.outputs.new_submissions }}; do
+            # Skip check if convention supersedes an existing one
+            SUPERSEDES=$(jq -r '.supersedes // empty' "$file")
+            if [ -n "$SUPERSEDES" ]; then
+              echo "Namespace uniqueness check skipped: convention supersedes $SUPERSEDES"
+              continue
+            fi
+            NS=$(jq -r '.namespace.key' "$file")
+            EXISTING=$(grep -r "\"key\": \"$NS\"" registry/ 2>/dev/null || true)
             if [ -n "$EXISTING" ]; then
-              echo "ERROR: namespace '$NS' already exists in registry"
+              echo "ERROR: namespace key '$NS' already exists in registry."
+              echo "If this convention supersedes an existing one, add a 'supersedes' field with the existing convention's UUID."
               exit 1
             fi
+          done
+
+      # ── Registry modification checks ─────────────────────────────────────
+      - name: Check only permitted fields modified
+        if: steps.changed.outputs.modified_registry != ''
+        run: |
+          PERMITTED="maintainers tags implementations doi version maturity supersedes"
+          for file in ${{ steps.changed.outputs.modified_registry }}; do
+            UUID=$(basename "$file" .json)
+            # Get the base version of the file
+            git show origin/${{ github.base_ref }}:"$file" > /tmp/base.json 2>/dev/null || {
+              echo "ERROR: Could not retrieve base version of $file"
+              exit 1
+            }
+            # Find changed keys
+            CHANGED_KEYS=$(node -e "
+              const base = JSON.parse(require('fs').readFileSync('/tmp/base.json'));
+              const head = JSON.parse(require('fs').readFileSync('$file'));
+              const permitted = '$PERMITTED'.split(' ');
+              const allKeys = new Set([...Object.keys(base), ...Object.keys(head)]);
+              const changed = [];
+              for (const key of allKeys) {
+                if (JSON.stringify(base[key]) !== JSON.stringify(head[key])) {
+                  changed.push(key);
+                }
+              }
+              const forbidden = changed.filter(k => !permitted.includes(k));
+              if (forbidden.length > 0) {
+                console.error('ERROR: The following fields may not be modified in an existing registry entry: ' + forbidden.join(', '));
+                console.error('Material changes (name, namespace, spec_url, schema_url, description, composes) require a new convention entry with a new UUID.');
+                process.exit(1);
+              }
+              console.log('Changed fields: ' + (changed.join(', ') || 'none'));
+            ")
+            echo "$CHANGED_KEYS"
+          done
+
+      - name: Check maintainers minimum
+        if: steps.changed.outputs.modified_registry != ''
+        run: |
+          for file in ${{ steps.changed.outputs.modified_registry }}; do
+            COUNT=$(jq '.maintainers | length' "$file")
+            if [ "$COUNT" -lt 1 ]; then
+              echo "ERROR: maintainers must have at least one entry in $file"
+              exit 1
+            fi
+          done
+
+      - name: Check major version not bumped
+        if: steps.changed.outputs.modified_registry != ''
+        run: |
+          for file in ${{ steps.changed.outputs.modified_registry }}; do
+            git show origin/${{ github.base_ref }}:"$file" > /tmp/base.json 2>/dev/null || continue
+            node -e "
+              const base = JSON.parse(require('fs').readFileSync('/tmp/base.json'));
+              const head = JSON.parse(require('fs').readFileSync('$file'));
+              const baseVer = base.version;
+              const headVer = head.version;
+              if (!baseVer || !headVer) process.exit(0);
+              const semver = v => {
+                const m = v.match(/^(\d+)\.(\d+)\.(\d+)/);
+                return m ? { major: +m[1], minor: +m[2], patch: +m[3] } : null;
+              };
+              const b = semver(baseVer);
+              const h = semver(headVer);
+              if (!b || !h) process.exit(0);
+              if (h.major > b.major) {
+                console.error('ERROR: Major version bump from ' + baseVer + ' to ' + headVer + ' is not permitted.');
+                console.error('A major version change requires a new convention entry with a new UUID.');
+                process.exit(1);
+              }
+              console.log('Version check passed: ' + baseVer + ' -> ' + headVer);
+            "
+          done
+
+      - name: Validate modified registry entries against schema
+        if: steps.changed.outputs.modified_registry != ''
+        run: |
+          for file in ${{ steps.changed.outputs.modified_registry }}; do
+            echo "Validating $file..."
+            ajv validate \
+              -s schema/convention.schema.json \
+              -d "$file" \
+              -c ajv-formats \
+              --strict=false
           done

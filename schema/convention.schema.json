@@ -27,11 +27,23 @@
       "description": "Canonical short name of the convention"
     },
     "namespace": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 32,
-      "pattern": "^[a-z][a-z0-9_-]*[:]?$",
-      "description": "Namespace prefix used for convention attributes; must be lowercase and start with a letter, may end with a colon"
+      "type": "object",
+      "description": "Describes how the convention exposes its attributes in Zarr metadata",
+      "required": ["style", "key"],
+      "additionalProperties": false,
+      "properties": {
+        "style": {
+          "type": "string",
+          "enum": ["prefixed", "nested"],
+          "description": "prefixed: attributes use a namespace prefix and colon separator; nested: attributes are grouped under a single top-level key"
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "For prefixed style: the prefix including the colon, e.g. 'proj:'. For nested style: the top-level attribute key, e.g. 'cs'"
+        }
+      }
     },
     "title": {
       "type": "string",

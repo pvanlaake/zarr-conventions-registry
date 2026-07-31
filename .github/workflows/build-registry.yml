@@ -9,14 +9,125 @@ on:
       - "submissions/**.json"
       - "docs/**.md"
       - "site/**"
+  pull_request:
+    types: [opened, reopened]
+    paths:
+      - "submissions/**.json"
 
 permissions:
   contents: write
   pages: write
   id-token: write
+  pull-requests: write
+  issues: write
 
 jobs:
+  # ── Label and comment on new submission PRs ──────────────────────────────
+  stage-submission:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Get submission details
+        id: details
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          FILES=$(git diff --name-only --diff-filter=A origin/${{ github.base_ref }}...HEAD -- 'submissions/**.json')
+          if [ -z "$FILES" ]; then
+            echo "no_new=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # Use first file for details (PRs should contain one convention)
+          FILE=$(echo "$FILES" | head -1)
+          NAME=$(jq -r '.name' "$FILE")
+          TITLE=$(jq -r '.title // ""' "$FILE")
+          NAMESPACE_KEY=$(jq -r '.namespace.key // ""' "$FILE")
+          MATURITY=$(jq -r '.maturity // "proposed"' "$FILE")
+          REVIEW_END=$(date -u -d '+14 days' +%Y-%m-%d 2>/dev/null || date -u -v+14d +%Y-%m-%d)
+          echo "name=$NAME" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+          echo "namespace_key=$NAMESPACE_KEY" >> $GITHUB_OUTPUT
+          echo "maturity=$MATURITY" >> $GITHUB_OUTPUT
+          echo "review_end=$REVIEW_END" >> $GITHUB_OUTPUT
+
+      - name: Add staged label
+        if: steps.details.outputs.no_new != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Ensure label exists
+            try {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'staged',
+                color: '0075ca',
+                description: 'Convention submission under community review'
+              });
+            } catch (e) {
+              // Label already exists, ignore
+            }
+            try {
+              await github.rest.issues.createLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                name: 'modification',
+                color: 'e4e669',
+                description: 'Modification to an existing registry entry'
+              });
+            } catch (e) {}
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              labels: ['staged']
+            });
+
+      - name: Post review period comment
+        if: steps.details.outputs.no_new != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const name = '${{ steps.details.outputs.name }}';
+            const title = '${{ steps.details.outputs.title }}';
+            const key = '${{ steps.details.outputs.namespace_key }}';
+            const maturity = '${{ steps.details.outputs.maturity }}';
+            const reviewEnd = '${{ steps.details.outputs.review_end }}';
+            const display = title ? `**${name}** — ${title}` : `**${name}**`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: [
+                `## 📋 Convention submission received`,
+                ``,
+                `| Field | Value |`,
+                `|-------|-------|`,
+                `| Name | ${display} |`,
+                `| Namespace | \`${key}\` |`,
+                `| Maturity | ${maturity} |`,
+                `| Review period ends | ${reviewEnd} |`,
+                ``,
+                `This submission has passed automated validation and is now open for **community review**.`,
+                ``,
+                `**Community members:** please review the convention specification and leave comments on this PR.`,
+                ``,
+                `**CDG:** this PR may be merged or closed with a reason after the review period ends on **${reviewEnd}**.`,
+                ``,
+                `> A submission may be rejected if it fails to meet the [registration criteria](https://github.com/${{ github.repository }}/blob/main/submissions/README.md).`
+              ].join('\n')
+            });
+
+  # ── Accept submissions and build on push to main ─────────────────────────
   accept-submissions:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -29,9 +140,6 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install dependencies
-        run: npm install -g ajv-cli ajv-formats
-
       - name: Move validated submissions to registry
         id: move
         run: |
@@ -40,7 +148,6 @@ jobs:
             [ -f "$file" ] || continue
             UUID=$(basename "$file" .json)
             TODAY=$(date -u +%Y-%m-%d)
-            # Add CDG-set fields
             jq \
               --arg date "$TODAY" \
               '.registered = $date | if .maturity then .status_changed = $date else . end' \
@@ -60,8 +167,9 @@ jobs:
           git commit -m "Accept submitted conventions [bot]"
           git push
 
-  build-catalog:
+  build-catalogs:
     needs: accept-submissions
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -74,71 +182,80 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install dependencies
-        run: npm install -g node-jq
-
-      - name: Build catalog.json
+      - name: Build registry catalog
         run: |
-          node - << 'EOF'
+          node -e "
           const fs = require('fs');
           const path = require('path');
 
-          // Load all registry entries
-          const dir = 'registry';
-          const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
-          const entries = files.map(f => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
+          function loadDir(dir) {
+            if (!fs.existsSync(dir)) return [];
+            return fs.readdirSync(dir)
+              .filter(f => f.endsWith('.json'))
+              .map(f => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
+          }
 
-          // Build used_by index
+          // ── Registry catalog (accepted, non-deprecated) ──
+          const all = loadDir('registry');
           const usedBy = {};
-          entries.forEach(entry => {
-            (entry.composes || []).forEach(uuid => {
+          all.forEach(e => {
+            (e.composes || []).forEach(uuid => {
               if (!usedBy[uuid]) usedBy[uuid] = [];
-              usedBy[uuid].push(entry.uuid);
+              usedBy[uuid].push(e.uuid);
             });
           });
+          const registered = all
+            .filter(e => e.maturity !== 'deprecated')
+            .map(e => ({ ...e, used_by: usedBy[e.uuid] || [] }))
+            .sort((a, b) => (a.registered || '').localeCompare(b.registered || ''));
+          fs.writeFileSync('site/catalog.json', JSON.stringify(registered, null, 2));
+          console.log('catalog.json: ' + registered.length + ' entries');
 
-          // Attach used_by to each entry
-          const catalog = entries.map(entry => ({
-            ...entry,
-            used_by: usedBy[entry.uuid] || []
-          }));
+          // ── Deprecated catalog ──
+          const deprecated = all
+            .filter(e => e.maturity === 'deprecated')
+            .map(e => ({ ...e, used_by: usedBy[e.uuid] || [] }))
+            .sort((a, b) => (a.status_changed || '').localeCompare(b.status_changed || ''));
+          fs.writeFileSync('site/deprecated.json', JSON.stringify(deprecated, null, 2));
+          console.log('deprecated.json: ' + deprecated.length + ' entries');
 
-          // Sort by registration date, oldest first
-          catalog.sort((a, b) => (a.registered || '').localeCompare(b.registered || ''));
-
-          fs.writeFileSync('site/catalog.json', JSON.stringify(catalog, null, 2));
-          console.log(`Catalog built with ${catalog.length} entries`);
-          EOF
+          // ── Staging catalog (submissions) ──
+          const staged = loadDir('submissions')
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+          fs.writeFileSync('site/staged.json', JSON.stringify(staged, null, 2));
+          console.log('staged.json: ' + staged.length + ' entries');
+          "
 
       - name: Build search index
         run: |
-          node - << 'EOF'
+          node -e "
           const fs = require('fs');
           const catalog = JSON.parse(fs.readFileSync('site/catalog.json', 'utf8'));
-          const index = catalog.map(entry => ({
-            uuid: entry.uuid,
-            name: entry.name,
-            namespace: entry.namespace,
-            title: entry.title || '',
-            description: entry.description,
-            tags: (entry.tags || []).join(' '),
-            maturity: entry.maturity || '',
-            maintainers: (entry.maintainers || []).join(' ')
+          const index = catalog.map(e => ({
+            uuid: e.uuid,
+            name: e.name,
+            namespace_key: e.namespace ? e.namespace.key : '',
+            title: e.title || '',
+            description: e.description,
+            tags: (e.tags || []).join(' '),
+            maturity: e.maturity || '',
+            maintainers: (e.maintainers || []).join(' ')
           }));
           fs.writeFileSync('site/assets/search-index.json', JSON.stringify(index, null, 2));
-          console.log(`Search index built with ${index.length} entries`);
-          EOF
+          console.log('search-index.json: ' + index.length + ' entries');
+          "
 
-      - name: Commit built site
+      - name: Commit built site artifacts
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add site/
-          git diff --staged --quiet || git commit -m "Rebuild catalog and search index [bot]"
+          git add site/catalog.json site/deprecated.json site/staged.json site/assets/search-index.json
+          git diff --staged --quiet || git commit -m "Rebuild catalogs and search index [bot]"
           git push
 
   deploy-pages:
-    needs: build-catalog
+    needs: build-catalogs
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
