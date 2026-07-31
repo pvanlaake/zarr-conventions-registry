@@ -30,7 +30,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 32,
-      "pattern": "^[a-z][a-z0-9_-]*$",
+      "pattern": "^[a-z][a-z0-9_-]*[:]?$",
       "description": "Namespace prefix used for convention attributes; must be lowercase and start with a letter, may end with a colon"
     },
     "title": {
@@ -74,6 +74,15 @@
       "pattern": "^10\\.\\d{4,}(\\.\\d+)*/.*$",
       "description": "DOI of the archived stable specification, issuer at author's discretion; required at Stable maturity, otherwise null or omitted"
     },
+    "composes": {
+      "type": "array",
+      "description": "UUIDs of conventions composed by this convention",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "uniqueItems": true
+    },
     "tags": {
       "type": "array",
       "items": {
@@ -99,7 +108,7 @@
     },
     "implementations": {
       "type": "array",
-      "description": "Links to known implementations",
+      "description": "Links to known implementations (other than conventions composing this convention)",
       "items": {
         "type": "object",
         "required": ["name", "url"],
@@ -118,15 +127,6 @@
           }
         }
       }
-    },
-    "related": {
-      "type": "array",
-      "description": "UUIDs of related or composing conventions",
-      "items": {
-        "type": "string",
-        "format": "uuid"
-      },
-      "uniqueItems": true
     },
     "registered": {
       "type": "string",

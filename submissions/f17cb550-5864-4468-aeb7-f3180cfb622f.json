@@ -1,0 +1,14 @@
+{
+  "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+  "name": "proj",
+  "namespace": "proj:",
+  "title": "Geospatial Projection Attribute Extension for Zarr",
+  "description": "This convention defines properties that encode datum and coordinate reference system (CRS) information for geospatial data.",
+  "spec_url": "https://github.com/zarr-conventions/proj/blob/v0.1/README.md",
+  "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/refs/tags/v0.1/schema.json",
+  "maintainers": ["@emmanuelmathot", "@maxrjones"],
+  "maturity": "pilot",
+  "tags": ["geospatial", "CRS"],
+  "version": "v0.1",
+  "implementations": []
+}

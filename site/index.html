@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Zarr Conventions Registry</title>
+    <link rel="stylesheet" href="assets/style.css" />
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <h1>Zarr Conventions Registry</h1>
+        <p class="subtitle">
+          A community registry of conventions for Zarr arrays and groups
+        </p>
+      </div>
+    </header>
+
+    <main>
+      <section class="search-bar">
+        <input
+          type="search"
+          id="search-input"
+          placeholder="Search by name, namespace, tag, or description..."
+          aria-label="Search conventions"
+          autocomplete="off"
+        />
+        <div class="filters">
+          <label for="filter-maturity">Maturity:</label>
+          <select id="filter-maturity">
+            <option value="">All</option>
+            <option value="proposed">Proposed</option>
+            <option value="pilot">Pilot</option>
+            <option value="candidate">Candidate</option>
+            <option value="stable">Stable</option>
+            <option value="deprecated">Deprecated</option>
+          </select>
+          <label for="filter-tag">Tag:</label>
+          <select id="filter-tag">
+            <option value="">All</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="stats" id="stats">
+        <!-- filled by JS -->
+      </section>
+
+      <section class="results" id="results">
+        <p class="loading">Loading registry...</p>
+      </section>
+    </main>
+
+    <div id="modal-overlay" class="modal-overlay" hidden>
+      <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
+        <button class="modal-close" id="modal-close" aria-label="Close">
+          &times;
+        </button>
+        <div id="modal-body">
+          <!-- filled by JS -->
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <div class="footer-inner">
+        <p>
+          Part of the <a href="https://zarr.dev">Zarr</a> ecosystem. Registry
+          entries are governed by the
+          <a href="https://zarr.dev/zeps/active/ZEP0011.html">ZEP0011</a>
+          framework.
+          <a href="https://github.com/pvanlaake/zarr-conventions-registry"
+            >Source and registration</a
+          >.
+        </p>
+        <p class="catalog-link">
+          Machine-readable:
+          <a href="catalog.json">catalog.json</a>
+        </p>
+      </div>
+    </footer>
+
+    <script src="assets/fuse.min.js"></script>
+    <script src="assets/search.js"></script>
+  </body>
+</html>

@@ -1,0 +1,162 @@
+name: Build registry
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "registry/**.json"
+      - "submissions/**.json"
+      - "docs/**.md"
+      - "site/**"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  accept-submissions:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install -g ajv-cli ajv-formats
+
+      - name: Move validated submissions to registry
+        id: move
+        run: |
+          MOVED=0
+          for file in submissions/*.json; do
+            [ -f "$file" ] || continue
+            UUID=$(basename "$file" .json)
+            TODAY=$(date -u +%Y-%m-%d)
+            # Add CDG-set fields
+            jq \
+              --arg date "$TODAY" \
+              '.registered = $date | if .maturity then .status_changed = $date else . end' \
+              "$file" > "registry/$UUID.json"
+            rm "$file"
+            MOVED=$((MOVED + 1))
+            echo "Accepted: $UUID"
+          done
+          echo "moved=$MOVED" >> $GITHUB_OUTPUT
+
+      - name: Commit accepted entries
+        if: steps.move.outputs.moved != '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add registry/ submissions/
+          git commit -m "Accept submitted conventions [bot]"
+          git push
+
+  build-catalog:
+    needs: accept-submissions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install -g node-jq
+
+      - name: Build catalog.json
+        run: |
+          node - << 'EOF'
+          const fs = require('fs');
+          const path = require('path');
+
+          // Load all registry entries
+          const dir = 'registry';
+          const files = fs.readdirSync(dir).filter(f => f.endsWith('.json'));
+          const entries = files.map(f => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
+
+          // Build used_by index
+          const usedBy = {};
+          entries.forEach(entry => {
+            (entry.composes || []).forEach(uuid => {
+              if (!usedBy[uuid]) usedBy[uuid] = [];
+              usedBy[uuid].push(entry.uuid);
+            });
+          });
+
+          // Attach used_by to each entry
+          const catalog = entries.map(entry => ({
+            ...entry,
+            used_by: usedBy[entry.uuid] || []
+          }));
+
+          // Sort by registration date, oldest first
+          catalog.sort((a, b) => (a.registered || '').localeCompare(b.registered || ''));
+
+          fs.writeFileSync('site/catalog.json', JSON.stringify(catalog, null, 2));
+          console.log(`Catalog built with ${catalog.length} entries`);
+          EOF
+
+      - name: Build search index
+        run: |
+          node - << 'EOF'
+          const fs = require('fs');
+          const catalog = JSON.parse(fs.readFileSync('site/catalog.json', 'utf8'));
+          const index = catalog.map(entry => ({
+            uuid: entry.uuid,
+            name: entry.name,
+            namespace: entry.namespace,
+            title: entry.title || '',
+            description: entry.description,
+            tags: (entry.tags || []).join(' '),
+            maturity: entry.maturity || '',
+            maintainers: (entry.maintainers || []).join(' ')
+          }));
+          fs.writeFileSync('site/assets/search-index.json', JSON.stringify(index, null, 2));
+          console.log(`Search index built with ${index.length} entries`);
+          EOF
+
+      - name: Commit built site
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add site/
+          git diff --staged --quiet || git commit -m "Rebuild catalog and search index [bot]"
+          git push
+
+  deploy-pages:
+    needs: build-catalog
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
