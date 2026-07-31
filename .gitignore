@@ -1,0 +1,5 @@
+site/catalog.json
+site/deprecated.json
+site/staged.json
+site/assets/search-index.json
+build-catalog-local.js
