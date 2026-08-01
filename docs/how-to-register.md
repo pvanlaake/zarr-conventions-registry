@@ -21,10 +21,11 @@ and the community review process provides feedback.
 ## The review process
 
 A new submission opens a 14-day community review period. During this time
-anyone can comment on the GitHub PR. The CDG reviews the submission and
-either merges it (accepted) or closes it with a reason (rejected).
+anyone can comment on the GitHub PR. The CDG reviews the submission and any
+comments made on the PR and then either merges it (accepted) or closes it
+with a reason (rejected).
 
-Rejections are rare and are typically for technical reasons such as an
+Rejections are typically for technical reasons such as an
 inaccessible spec URL or a malformed JSON entry, not for design disagreements.
 
 ## Versioning
@@ -37,6 +38,8 @@ The rationale is that a major version change represents a breaking change
 that existing implementers cannot safely upgrade to without review. A new
 UUID gives the new major version its own identity and allows both versions
 to coexist in the registry.
+
+Versioning is required for a convention to reach Candidate maturity level.
 
 ## Superseding a convention
 

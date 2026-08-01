@@ -33,9 +33,10 @@ const deprecated = all
   );
 
 // ── Staged entries ────────────────────────────────────────────────────────
-const staged = loadDir("submissions").sort((a, b) =>
-  (a.name || "").localeCompare(b.name || ""),
-);
+const today = new Date().toISOString().split("T")[0];
+const staged = loadDir("submissions")
+  .map((e) => ({ ...e, submitted: e.submitted || today }))
+  .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
 // ── Write outputs ─────────────────────────────────────────────────────────
 fs.writeFileSync("site/catalog.json", JSON.stringify(registered, null, 2));

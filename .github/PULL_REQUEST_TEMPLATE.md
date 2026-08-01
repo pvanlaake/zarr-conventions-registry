@@ -12,7 +12,7 @@ Select the type of PR by deleting the sections that do not apply.
 
 ### Checklist
 
-- [ ] I have generated a UUID with `uuidgen` and used it as both the filename and the `uuid` field
+- [ ] I have generated a UUID and used it as both the filename and the `uuid` field
 - [ ] The file is in `submissions/` and named `{uuid}.json`
 - [ ] The file validates against `schema/convention.schema.json`
 - [ ] `spec_url` and `schema_url` point to publicly accessible, stable URLs
@@ -22,8 +22,9 @@ Select the type of PR by deleting the sections that do not apply.
 
 ### Evidence of readiness
 
-_Describe the current state of the convention: implementations, datasets using it,
-community discussion, or other signals that it is ready for review._
+_Describe the current state of the convention: its purpose, potential or actual
+implementations, datasets using it, community discussion, or other signals that it is
+ready for submission and review._
 
 ### Relationship to existing conventions
 

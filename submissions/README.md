@@ -33,6 +33,9 @@ any overlap is unavoidable or non-obtrusive.
 
 ### 1. Generate a UUID
 
+Use your favorite tool to generate a UUID, with all letters in lower case. A random
+UUID (version 4) is preferred. In Unix-like systems you can use this:
+
 ```bash
 uuidgen | tr '[:upper:]' '[:lower:]'
 ```
@@ -66,13 +69,7 @@ Use the template below, filling in all mandatory fields.
   ],
   "version": null,
   "composes": [],
-  "implementations": [
-    {
-      "name": "my-library",
-      "url": "https://github.com/your-org/my-library",
-      "language": "Python"
-    }
-  ]
+  "implementations": []
 }
 ```
 
@@ -80,6 +77,21 @@ Use the template below, filling in all mandatory fields.
 `schema_url`, `maintainers`.
 
 **Do not set** `registered` or `status_changed` — these are added by the CDG on merge.
+
+If your convention uses other conventions, enter the UUIDs of those other conventions
+in the `composes` field as a comma-separated list of double-quoted UUIDs.
+
+If your convention already has some implementations (tools or publicly accessible
+data sets) enter them under `implementations` using a comma-sparated list of code blocks
+like so:
+
+```
+    {
+      "name": "my-library",
+      "url": "https://github.com/account/my-library",
+      "language": "Python"
+    }
+```
 
 ### 3. Validate locally
 
@@ -91,7 +103,8 @@ ajv validate -s schema/convention.schema.json -d submissions/{your-uuid}.json -c
 ```
 
 Or open the file in VS Code — if the workspace is configured correctly, schema
-violations will be underlined in red automatically.
+violations will be underlined in red automatically - or your favorite IDE for
+ease of editing and validation.
 
 ### 4. Open a pull request
 
@@ -109,10 +122,13 @@ with a reason after the review period ends.
 
 You may be asked to revise the submission during the review period. To do so,
 push changes to your branch — the validation workflow will re-run automatically.
+If such changes are significant - and your revision takes time to implement -
+the review period may be extended.
 
 ## Namespace
 
-The `namespace` field describes how your convention exposes attributes in a Zarr store.
+The `namespace` field describes how your convention exposes attributes in a Zarr
+array or group.
 
 **Prefixed style** — attributes use a namespace prefix and colon separator:
 
@@ -148,6 +164,9 @@ containing the UUID of the convention being superseded:
 
 This exempts your submission from the namespace uniqueness check and signals to
 the registry that the older convention should eventually be deprecated.
+
+You should only propose to supersede an existing convention if you own the
+convention being superseded.
 
 ## Modifying an existing registration
 

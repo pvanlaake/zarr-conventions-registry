@@ -1,9 +1,9 @@
 # Convention composability
 
-Zarr conventions are designed to be combined. A single Zarr store may
+Zarr conventions are designed to be combined. A single Zarr array may
 declare multiple conventions, each responsible for a different aspect of
-the metadata. This page explains how composability works in practice and
-how to reason about convention interactions.
+describing the data. This page explains how composability works in practice
+and how to reason about convention interactions.
 
 ## The `zarr_conventions` attribute
 

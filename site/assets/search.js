@@ -48,11 +48,23 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function loadCatalog() {
   const results = document.getElementById("results");
   try {
+    // Load current page catalog
     const res = await fetch(config.catalog);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     catalog = await res.json();
-    catalog.forEach((e) => {
-      nameIndex[e.uuid] = e.name;
+
+    // Load all catalogs for name resolution across pages
+    const allCatalogs = await Promise.allSettled([
+      fetch("catalog.json").then((r) => r.json()),
+      fetch("staged.json").then((r) => r.json()),
+      fetch("deprecated.json").then((r) => r.json()),
+    ]);
+    allCatalogs.forEach((result) => {
+      if (result.status === "fulfilled") {
+        result.value.forEach((e) => {
+          nameIndex[e.uuid] = e.name;
+        });
+      }
     });
 
     if (config.showSearch && typeof Fuse !== "undefined") {
@@ -71,6 +83,16 @@ async function loadCatalog() {
   } catch (err) {
     results.innerHTML = `<p class="empty">Could not load catalog: ${err.message}</p>`;
   }
+}
+
+function daysRemaining(submittedDate) {
+  if (!submittedDate) return null;
+  const submitted = new Date(submittedDate);
+  const reviewEnd = new Date(submitted);
+  reviewEnd.setDate(reviewEnd.getDate() + 14);
+  const now = new Date();
+  const diff = Math.ceil((reviewEnd - now) / (1000 * 60 * 60 * 24));
+  return diff;
 }
 
 // ── Filters ────────────────────────────────────────────────────────────────
@@ -157,6 +179,18 @@ function renderCard(entry) {
        </a>`
     : "";
 
+  const daysLeft =
+    PAGE === "staged" && entry.submitted
+      ? daysRemaining(entry.submitted)
+      : null;
+
+  const daysLabel =
+    daysLeft !== null
+      ? daysLeft > 0
+        ? `<span class="badge badge-days-remaining">${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining</span>`
+        : `<span class="badge badge-days-expired">Review period ended</span>`
+      : "";
+
   const supersededBy = entry.supersedes
     ? `<span class="badge badge-superseded">supersedes ${esc(nameIndex[entry.supersedes] || entry.supersedes)}</span>`
     : "";
@@ -172,6 +206,7 @@ function renderCard(entry) {
       ${maturityBadge}
       ${tagBadges}
       ${supersededBy}
+      ${daysLabel}
       ${prLink}
     </div>
   `;
@@ -232,17 +267,43 @@ function openModal(entry) {
        </div>`
     : "";
 
-  const prLinkHTML = config.showPrLink
-    ? `<div class="modal-section">
+  const days =
+    PAGE === "staged" && entry.submitted
+      ? daysRemaining(entry.submitted)
+      : null;
+
+  const reviewHTML =
+    PAGE === "staged"
+      ? `<div class="modal-section">
          <h3>Community review</h3>
+         ${
+           entry.submitted
+             ? `
          <p>
+           Submitted: ${esc(entry.submitted)}<br>
+           Review period ends: ${(() => {
+             const d = new Date(entry.submitted);
+             d.setDate(d.getDate() + 14);
+             return d.toISOString().split("T")[0];
+           })()}<br>
+           <strong>${
+             days !== null
+               ? days > 0
+                 ? `${days} day${days !== 1 ? "s" : ""} remaining`
+                 : "Review period has ended — awaiting CDG decision"
+               : ""
+           }</strong>
+         </p>`
+             : ""
+         }
+         <p style="margin-top:0.5rem">
            <a href="https://github.com/pvanlaake/zarr-conventions-registry/pulls?q=is%3Apr+is%3Aopen+${esc(entry.uuid)}"
               target="_blank" rel="noopener">
              View PR and leave comments on GitHub →
            </a>
          </p>
        </div>`
-    : "";
+      : "";
 
   const reviewNote =
     PAGE === "deprecated"
@@ -341,7 +402,7 @@ function openModal(entry) {
         : ""
     }
 
-    ${prLinkHTML}
+    ${reviewHTML}
     ${reviewNote}
 
     <p class="modal-uuid">

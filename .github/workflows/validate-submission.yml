@@ -122,7 +122,7 @@ jobs:
       - name: Check only permitted fields modified
         if: steps.changed.outputs.modified_registry != ''
         run: |
-          PERMITTED="maintainers tags implementations doi version maturity supersedes"
+          PERMITTED="maintainers tags implementations doi version maturity supersedes submitted"
           for file in ${{ steps.changed.outputs.modified_registry }}; do
             UUID=$(basename "$file" .json)
             # Get the base version of the file
