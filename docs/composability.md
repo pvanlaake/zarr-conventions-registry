@@ -29,7 +29,9 @@ to find the specification and understand what metadata to expect.
 
 The `composes` field in a registry entry expresses a **dependency**:
 convention A composes convention B means that A requires B to be present
-and meaningful. A reader implementing A must also implement B.
+and meaningful. A reader implementing A must also implement B. Convention A
+may not be registered until convention B is registered (both may be in the
+staging phase though).
 
 Co-occurrence without dependency is also valid and requires no declaration:
 two conventions may both be present in a store without either depending on

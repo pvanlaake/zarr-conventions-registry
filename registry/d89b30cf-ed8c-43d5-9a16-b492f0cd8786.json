@@ -1,0 +1,25 @@
+{
+  "uuid": "d89b30cf-ed8c-43d5-9a16-b492f0cd8786",
+  "name": "ref",
+  "namespace": {
+    "style": "nested",
+    "key": "ref"
+  },
+  "title": "External Reference Convention",
+  "description": "This convention defines a mechanism to reference external node from the attributes of a referencing node (array or group). \"External\" means that the referenced node is defined elsewhere in the store of the referencing node or in another store. The referenced object may be an array, a group, or an item in a zarr.json file.",
+  "spec_url": "https://raw.githubusercontent.com/R-CF/zarr_convention_ref/main/README.md",
+  "schema_url": "https://raw.githubusercontent.com/R-CF/zarr_convention_ref/main/schema.json",
+  "maintainers": ["@pvanlaake"],
+  "maturity": "pilot",
+  "tags": ["reference", "out-of-group"],
+  "version": null,
+  "composes": [],
+  "implementations": [
+    {
+      "name": "zarr",
+      "url": "https://cran.r-project.org/package=zarr",
+      "description": "Native and Extensible R Driver for Zarr stores (v.2 and v.3)",
+      "language": "R"
+    }
+  ]
+}

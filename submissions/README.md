@@ -85,12 +85,13 @@ If your convention already has some implementations (tools or publicly accessibl
 data sets) enter them under `implementations` using a comma-sparated list of code blocks
 like so:
 
-```
-    {
-      "name": "my-library",
-      "url": "https://github.com/account/my-library",
-      "language": "Python"
-    }
+```json
+{
+  "name": "my-library",
+  "description": "Library for managing large data stores for my application domain",
+  "url": "https://github.com/account/my-library",
+  "language": "Python"
+}
 ```
 
 ### 3. Validate locally

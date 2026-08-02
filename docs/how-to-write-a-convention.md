@@ -92,4 +92,6 @@ using their registry UUIDs. This serves two purposes:
   ("used by") automatically
 
 Composition is directional: if `cs` composes `proj`, then `cs` depends on
-`proj` — not the other way around. Do not add reverse references.
+`proj` — not the other way around. Do not add reverse references. A
+convention may not be registered until all conventions that it composes are
+registered. Simultaneous submission and review, however, is allowed.

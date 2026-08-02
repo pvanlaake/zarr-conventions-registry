@@ -352,7 +352,7 @@ main {
   font-weight: 500;
   padding: 0.15rem 0.55rem;
   border-radius: 2rem;
-  text-transform: capitalize;
+  text-transform: none;
   letter-spacing: 0.01em;
 }
 
@@ -602,4 +602,40 @@ footer {
 .badge-days-expired {
   background: #fee2e2;
   color: #991b1b;
+}
+
+/* ── Badge links ── */
+.badge-link {
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.badge-link:hover {
+  opacity: 0.75;
+  text-decoration: none;
+}
+
+/* ── Modal back button ── */
+.modal-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  font-family: var(--font);
+  color: var(--color-muted);
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+
+.modal-back:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
 }

@@ -2,6 +2,7 @@
 let catalog = [];
 let fuse = null;
 let nameIndex = {};
+let navStack = [];
 
 // ── Config per page ────────────────────────────────────────────────────────
 const CONFIG = {
@@ -63,6 +64,13 @@ async function loadCatalog() {
       if (result.status === "fulfilled") {
         result.value.forEach((e) => {
           nameIndex[e.uuid] = e.name;
+          // Cache all entries for cross-catalog navigation
+          window._allEntries = [];
+          allCatalogs.forEach((result) => {
+            if (result.status === "fulfilled") {
+              window._allEntries.push(...result.value);
+            }
+          });
         });
       }
     });
@@ -93,6 +101,33 @@ function daysRemaining(submittedDate) {
   const now = new Date();
   const diff = Math.ceil((reviewEnd - now) / (1000 * 60 * 60 * 24));
   return diff;
+}
+
+const MATURITY_ORDER = {
+  stable: 0,
+  candidate: 1,
+  pilot: 2,
+  proposed: 3,
+};
+
+function sortEntries(entries) {
+  if (PAGE === "registered") {
+    return [...entries].sort((a, b) => {
+      const ma = MATURITY_ORDER[a.maturity] ?? 99;
+      const mb = MATURITY_ORDER[b.maturity] ?? 99;
+      if (ma !== mb) return ma - mb;
+      // Within same maturity, sort by registered date descending (newest first)
+      return (b.registered || "").localeCompare(a.registered || "");
+    });
+  }
+  if (PAGE === "staged") {
+    return [...entries].sort((a, b) => {
+      const da = daysRemaining(a.submitted) ?? 999;
+      const db = daysRemaining(b.submitted) ?? 999;
+      return da - db;
+    });
+  }
+  return entries;
 }
 
 // ── Filters ────────────────────────────────────────────────────────────────
@@ -146,7 +181,9 @@ function renderAll(entries) {
   }
 
   results.innerHTML = "";
-  entries.forEach((entry) => results.appendChild(renderCard(entry)));
+  sortEntries(entries).forEach((entry) =>
+    results.appendChild(renderCard(entry)),
+  );
 }
 
 function renderCard(entry) {
@@ -220,27 +257,41 @@ function renderCard(entry) {
 }
 
 // ── Modal ──────────────────────────────────────────────────────────────────
-function openModal(entry) {
+function openModal(entry, addToStack = true) {
   const overlay = document.getElementById("modal-overlay");
   const body = document.getElementById("modal-body");
+
+  if (addToStack && overlay.hidden === false) {
+    // We're navigating from one modal to another — push current to stack
+    navStack.push(body.dataset.currentUuid);
+  } else if (addToStack && overlay.hidden === true) {
+    // Fresh open from a card — clear stack
+    navStack = [];
+  }
+
+  body.dataset.currentUuid = entry.uuid;
 
   const composesHTML =
     (entry.composes || []).length > 0
       ? entry.composes
-          .map(
-            (uuid) =>
-              `<span class="badge badge-tag">${esc(nameIndex[uuid] || uuid)}</span>`,
-          )
+          .map((uuid) => {
+            const name = nameIndex[uuid] || uuid;
+            return `<a href="#" class="badge badge-tag badge-link"
+                   data-uuid="${esc(uuid)}"
+                   onclick="navigateToUuid(event, '${esc(uuid)}')">${esc(name)}</a>`;
+          })
           .join(" ")
       : '<span class="muted">none</span>';
 
   const usedByHTML =
     (entry.used_by || []).length > 0
       ? entry.used_by
-          .map(
-            (uuid) =>
-              `<span class="badge badge-tag">${esc(nameIndex[uuid] || uuid)}</span>`,
-          )
+          .map((uuid) => {
+            const name = nameIndex[uuid] || uuid;
+            return `<a href="#" class="badge badge-tag badge-link"
+                   data-uuid="${esc(uuid)}"
+                   onclick="navigateToUuid(event, '${esc(uuid)}')">${esc(name)}</a>`;
+          })
           .join(" ")
       : '<span class="muted">none</span>';
 
@@ -263,7 +314,8 @@ function openModal(entry) {
   const supersedesHTML = entry.supersedes
     ? `<div class="modal-section">
          <h3>Supersedes</h3>
-         <p><span class="badge badge-tag">${esc(nameIndex[entry.supersedes] || entry.supersedes)}</span></p>
+         <p><a href="#" class="badge badge-tag badge-link"
+                onclick="navigateToUuid(event, '${esc(entry.supersedes)}')">${esc(nameIndex[entry.supersedes] || entry.supersedes)}</a></p>
        </div>`
     : "";
 
@@ -314,7 +366,13 @@ function openModal(entry) {
        </div>`
       : "";
 
+  const backButton =
+    navStack.length > 0
+      ? `<button class="modal-back" onclick="navigateBack()">← Back</button>`
+      : "";
+
   body.innerHTML = `
+    ${backButton}
     <h2 id="modal-title">${esc(entry.name)}${entry.title ? " — " + esc(entry.title) : ""}</h2>
     ${nsHTML}
 
@@ -418,6 +476,66 @@ function openModal(entry) {
 
 function closeModal() {
   document.getElementById("modal-overlay").hidden = true;
+}
+
+function navigateToUuid(event, uuid) {
+  event.preventDefault();
+  // Search all loaded catalogs for the entry
+  const allEntries = [...catalog, ...(window._allEntries || [])];
+  const entry = allEntries.find((e) => e.uuid === uuid);
+  if (entry) {
+    openModal(entry, true);
+  } else {
+    // Entry not in current page catalog — try fetching from other catalogs
+    const sources = ["catalog.json", "staged.json", "deprecated.json"].filter(
+      (s) => s !== config.catalog,
+    );
+    Promise.any(
+      sources.map((src) =>
+        fetch(src)
+          .then((r) => r.json())
+          .then((entries) => {
+            const found = entries.find((e) => e.uuid === uuid);
+            if (!found) throw new Error("not found");
+            return found;
+          }),
+      ),
+    )
+      .then((found) => {
+        openModal(found, true);
+      })
+      .catch(() => {
+        // UUID not found in any catalog — show a message
+        const body = document.getElementById("modal-body");
+        const backButton =
+          navStack.length > 0
+            ? `<button class="modal-back" onclick="navigateBack()">← Back</button>`
+            : "";
+        body.innerHTML = `
+        ${backButton}
+        <h2>Convention not found</h2>
+        <p class="muted" style="margin-top:1rem">
+          UUID: <code>${esc(uuid)}</code><br>
+          This convention may not yet be registered.
+        </p>
+      `;
+      });
+  }
+}
+
+function navigateBack() {
+  const previousUuid = navStack.pop();
+  if (!previousUuid) {
+    closeModal();
+    return;
+  }
+  const allEntries = [...catalog, ...(window._allEntries || [])];
+  const entry = allEntries.find((e) => e.uuid === previousUuid);
+  if (entry) {
+    openModal(entry, false);
+  } else {
+    closeModal();
+  }
 }
 
 // ── Events ─────────────────────────────────────────────────────────────────

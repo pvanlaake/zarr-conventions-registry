@@ -1,26 +1,67 @@
 [
   {
-    "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
-    "name": "proj",
+    "uuid": "d89b30cf-ed8c-43d5-9a16-b492f0cd8786",
+    "name": "ref",
     "namespace": {
-      "style": "prefixed",
-      "key": "proj:"
+      "style": "nested",
+      "key": "ref"
     },
-    "title": "Geospatial Projection Attribute Extension for Zarr",
-    "description": "This convention defines properties that encode datum and coordinate reference system (CRS) information for geospatial data.",
-    "spec_url": "https://github.com/zarr-conventions/proj/blob/v0.1/README.md",
-    "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/refs/tags/v0.1/schema.json",
+    "title": "External Reference Convention",
+    "description": "This convention defines a mechanism to reference external node from the attributes of a referencing node (array or group). \"External\" means that the referenced node is defined elsewhere in the store of the referencing node or in another store. The referenced object may be an array, a group, or an item in a zarr.json file.",
+    "spec_url": "https://raw.githubusercontent.com/R-CF/zarr_convention_ref/main/README.md",
+    "schema_url": "https://raw.githubusercontent.com/R-CF/zarr_convention_ref/main/schema.json",
     "maintainers": [
-      "@emmanuelmathot",
-      "@maxrjones"
+      "@pvanlaake"
     ],
     "maturity": "pilot",
     "tags": [
-      "geospatial",
-      "CRS"
+      "reference",
+      "out-of-group"
     ],
-    "version": "v0.1",
-    "implementations": [],
+    "version": null,
+    "composes": [],
+    "implementations": [
+      {
+        "name": "zarr",
+        "url": "https://cran.r-project.org/package=zarr",
+        "description": "Native and Extensible R Driver for Zarr stores (v.2 and v.3)",
+        "language": "R"
+      }
+    ],
+    "used_by": [
+      "e4dbf0b7-7a00-4ce6-b23e-484292014ab4"
+    ]
+  },
+  {
+    "uuid": "3bbe438d-df37-49fe-8e2b-739296d46dfb",
+    "name": "uom",
+    "namespace": {
+      "style": "nested",
+      "key": "uom"
+    },
+    "title": "Units of Measure",
+    "description": "Units of measurement for Zarr arrays",
+    "spec_url": "https://github.com/clbarnes/zarr-convention-uom/blob/v1/README.md",
+    "schema_url": "https://raw.githubusercontent.com/clbarnes/zarr-convention-uom/refs/tags/v1/schema.json",
+    "maintainers": [
+      "@clbarnes"
+    ],
+    "maturity": "pilot",
+    "tags": [
+      "units",
+      "units-of-measure",
+      "UCUM"
+    ],
+    "version": "v1",
+    "implementations": [
+      {
+        "name": "zarrs_conventions_uom",
+        "url": "https://github.com/clbarnes/zarrs_conventions/tree/main/zarrs_conventions_uom",
+        "description": "zarrs / zarrs_conventions implementation",
+        "language": "rust"
+      }
+    ],
+    "composes": [],
     "registered": "2026-07-31",
     "status_changed": "2026-07-31",
     "used_by": [
@@ -65,10 +106,111 @@
       }
     ],
     "composes": [
+      "f17cb550-5864-4468-aeb7-f3180cfb622f",
+      "d89b30cf-ed8c-43d5-9a16-b492f0cd8786",
+      "3bbe438d-df37-49fe-8e2b-739296d46dfb"
+    ],
+    "registered": "2026-07-31",
+    "status_changed": "2026-07-31",
+    "used_by": []
+  },
+  {
+    "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+    "name": "proj",
+    "namespace": {
+      "style": "prefixed",
+      "key": "proj:"
+    },
+    "title": "Geospatial Projection Attribute Extension for Zarr",
+    "description": "This convention defines properties that encode datum and coordinate reference system (CRS) information for geospatial data.",
+    "spec_url": "https://github.com/zarr-conventions/proj/blob/v0.1/README.md",
+    "schema_url": "https://raw.githubusercontent.com/zarr-conventions/proj/refs/tags/v0.1/schema.json",
+    "maintainers": [
+      "@emmanuelmathot",
+      "@maxrjones"
+    ],
+    "maturity": "stable",
+    "tags": [
+      "geospatial",
+      "CRS"
+    ],
+    "version": "v0.1",
+    "implementations": [],
+    "registered": "2026-07-31",
+    "status_changed": "2026-07-31",
+    "used_by": [
+      "e4dbf0b7-7a00-4ce6-b23e-484292014ab4"
+    ]
+  },
+  {
+<<<<<<< HEAD
+    "uuid": "e4dbf0b7-7a00-4ce6-b23e-484292014ab4",
+    "name": "cs",
+    "namespace": {
+      "style": "nested",
+      "key": "cs"
+    },
+    "title": "Coordinate Set Convention",
+    "description": "Encodes the coordinate structure of a Zarr array following the CF Metadata Conventions model. Supports Cartesian, curvilinear, and parametric coordinate sets including auxiliary coordinate variables, bounds, formula terms, and CF coordinate typing. Designed to be composed with other conventions for CRS, projection, and domain-specific metadata.",
+    "spec_url": "https://github.com/R-CF/zarr_conventions_cs/blob/main/README.md",
+    "schema_url": "https://raw.githubusercontent.com/R-CF/zarr_conventions_cs/main/schema/cs.schema.json",
+    "maintainers": [
+      "@pvanlaake"
+    ],
+    "maturity": "pilot",
+    "tags": [
+      "coordinates",
+      "CF",
+      "geospatial",
+      "scientific",
+      "netCDF",
+      "climate",
+      "weather"
+    ],
+    "version": null,
+    "implementations": [
+      {
+        "name": "geozarr",
+        "url": "https://github.com/r-cf/geozarr",
+        "language": "R"
+      },
+      {
+        "name": "xarray-zarr-xgroup",
+        "url": "https://github.com/pvanlaake/xarray-zarr-xgroup",
+        "language": "Python"
+      }
+    ],
+    "composes": [
       "f17cb550-5864-4468-aeb7-f3180cfb622f"
     ],
     "registered": "2026-08-01",
     "status_changed": "2026-08-01",
+=======
+    "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+    "name": "spatial",
+    "namespace": {
+      "style": "prefixed",
+      "key": "spatial:"
+    },
+    "title": "Spatial Convention",
+    "description": "Spatial coordinate information",
+    "spec_url": "https://github.com/zarr-conventions/spatial/blob/v0.1/README.md",
+    "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v0.1/schema.json",
+    "maintainers": [
+      "@maxrjones",
+      "@emmanuelmathot",
+      "@kylebarron"
+    ],
+    "maturity": "stable",
+    "tags": [
+      "geospatial",
+      "coordinates"
+    ],
+    "version": "v0.1",
+    "implementations": [],
+    "registered": "2026-08-02",
+    "status_changed": "2026-08-02",
+>>>>>>> 81e21aa (Better navigation, documentation update)
     "used_by": []
   }
 ]

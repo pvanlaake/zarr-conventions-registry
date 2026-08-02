@@ -1,13 +1,23 @@
 [
   {
-    "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
-    "name": "proj",
-    "namespace_key": "proj:",
-    "title": "Geospatial Projection Attribute Extension for Zarr",
-    "description": "This convention defines properties that encode datum and coordinate reference system (CRS) information for geospatial data.",
-    "tags": "geospatial CRS",
+    "uuid": "d89b30cf-ed8c-43d5-9a16-b492f0cd8786",
+    "name": "ref",
+    "namespace_key": "ref",
+    "title": "External Reference Convention",
+    "description": "This convention defines a mechanism to reference external node from the attributes of a referencing node (array or group). \"External\" means that the referenced node is defined elsewhere in the store of the referencing node or in another store. The referenced object may be an array, a group, or an item in a zarr.json file.",
+    "tags": "reference out-of-group",
     "maturity": "pilot",
-    "maintainers": "@emmanuelmathot @maxrjones"
+    "maintainers": "@pvanlaake"
+  },
+  {
+    "uuid": "3bbe438d-df37-49fe-8e2b-739296d46dfb",
+    "name": "uom",
+    "namespace_key": "uom",
+    "title": "Units of Measure",
+    "description": "Units of measurement for Zarr arrays",
+    "tags": "units units-of-measure UCUM",
+    "maturity": "pilot",
+    "maintainers": "@clbarnes"
   },
   {
     "uuid": "e4dbf0b7-7a00-4ce6-b23e-484292014ab4",
@@ -18,5 +28,36 @@
     "tags": "coordinates CF geospatial scientific netCDF climate weather",
     "maturity": "pilot",
     "maintainers": "@pvanlaake"
+  },
+  {
+    "uuid": "f17cb550-5864-4468-aeb7-f3180cfb622f",
+    "name": "proj",
+    "namespace_key": "proj:",
+    "title": "Geospatial Projection Attribute Extension for Zarr",
+    "description": "This convention defines properties that encode datum and coordinate reference system (CRS) information for geospatial data.",
+    "tags": "geospatial CRS",
+    "maturity": "stable",
+    "maintainers": "@emmanuelmathot @maxrjones"
+  },
+  {
+<<<<<<< HEAD
+    "uuid": "e4dbf0b7-7a00-4ce6-b23e-484292014ab4",
+    "name": "cs",
+    "namespace_key": "cs",
+    "title": "Coordinate Set Convention",
+    "description": "Encodes the coordinate structure of a Zarr array following the CF Metadata Conventions model. Supports Cartesian, curvilinear, and parametric coordinate sets including auxiliary coordinate variables, bounds, formula terms, and CF coordinate typing. Designed to be composed with other conventions for CRS, projection, and domain-specific metadata.",
+    "tags": "coordinates CF geospatial scientific netCDF climate weather",
+    "maturity": "pilot",
+    "maintainers": "@pvanlaake"
+=======
+    "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+    "name": "spatial",
+    "namespace_key": "spatial:",
+    "title": "Spatial Convention",
+    "description": "Spatial coordinate information",
+    "tags": "geospatial coordinates",
+    "maturity": "stable",
+    "maintainers": "@maxrjones @emmanuelmathot @kylebarron"
+>>>>>>> 81e21aa (Better navigation, documentation update)
   }
 ]

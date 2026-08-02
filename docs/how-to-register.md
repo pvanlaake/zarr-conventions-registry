@@ -25,8 +25,11 @@ anyone can comment on the GitHub PR. The CDG reviews the submission and any
 comments made on the PR and then either merges it (accepted) or closes it
 with a reason (rejected).
 
-Rejections are typically for technical reasons such as an
-inaccessible spec URL or a malformed JSON entry, not for design disagreements.
+When comments require a significant change in the convention, the review
+period may be extended.
+
+Rejections are typically for technical reasons such as an inaccessible spec
+URL or a malformed JSON entry, not for design disagreements.
 
 ## Versioning
 
@@ -39,7 +42,8 @@ that existing implementers cannot safely upgrade to without review. A new
 UUID gives the new major version its own identity and allows both versions
 to coexist in the registry.
 
-Versioning is required for a convention to reach Candidate maturity level.
+Versioning is required for a convention to reach Candidate maturity level. A
+Stable maturity level requires the version to be at least "v.1".
 
 ## Superseding a convention
 
@@ -50,6 +54,12 @@ signals that the older convention should eventually be deprecated.
 
 The older convention is not automatically deprecated — that requires a
 separate modification PR setting its `maturity` to `deprecated`.
+
+The new convention may inherit the maturity level of the superseded
+convention if evidence is presented that the new convention has been
+implemented or that efforts to do so are close to publication. Otherwise
+the new convention will be subject to the same maturity process as other
+submitted conventions.
 
 ## Modifying an existing registration
 

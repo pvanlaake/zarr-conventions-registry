@@ -1,0 +1,19 @@
+{
+  "uuid": "689b58e2-cf7b-45e0-9fff-9cfc0883d6b4",
+  "name": "spatial",
+  "namespace": {
+    "style": "prefixed",
+    "key": "spatial:"
+  },
+  "title": "Spatial Convention",
+  "description": "Spatial coordinate information",
+  "spec_url": "https://github.com/zarr-conventions/spatial/blob/v0.1/README.md",
+  "schema_url": "https://raw.githubusercontent.com/zarr-conventions/spatial/refs/tags/v0.1/schema.json",
+  "maintainers": ["@maxrjones", "@emmanuelmathot", "@kylebarron"],
+  "maturity": "stable",
+  "tags": ["geospatial", "coordinates"],
+  "version": "v0.1",
+  "implementations": [],
+  "registered": "2026-08-02",
+  "status_changed": "2026-08-02"
+}
