@@ -25,7 +25,7 @@ differentiation and without a `supersedes` relationship.
 The registry is a discovery tool, not a gatekeeper. Submissions are reviewed on the
 basis of their additional functionality compared to the existing set of conventions.
 While conventions are not generally refused on grounds of overlapping with existing
-conventions such overlaps will atract critical comments so you are advised to review
+conventions such overlaps will attract critical comments so you are advised to review
 the registered conventions and elaborate on what your convention contributes and why
 any overlap is unavoidable or non-obtrusive.
 
