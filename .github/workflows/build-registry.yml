@@ -10,7 +10,7 @@ on:
       - "docs/**.md"
       - "site/**"
   pull_request:
-    types: [opened, reopened]
+    types: [opened, reopened, synchronize, labeled]
     paths:
       - "submissions/**.json"
 
@@ -140,6 +140,126 @@ jobs:
                 `> A submission may be rejected if it fails to meet the [registration criteria](https://github.com/${{ github.repository }}/blob/main/submissions/README.md).`
               ].join('\n')
             });
+
+  build-staged-catalog:
+    needs: []
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install ajv ajv-formats
+
+      - name: Build staged catalog from open PRs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node -e "
+          const https = require('https');
+
+          function ghFetch(path) {
+            return new Promise((resolve, reject) => {
+              const options = {
+                hostname: 'api.github.com',
+                path,
+                headers: {
+                  'Authorization': 'Bearer ' + process.env.GH_TOKEN,
+                  'User-Agent': 'zarr-conventions-registry',
+                  'Accept': 'application/vnd.github.v3+json'
+                }
+              };
+              https.get(options, res => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => resolve(JSON.parse(data)));
+              }).on('error', reject);
+            });
+          }
+
+          function rawFetch(url) {
+            return new Promise((resolve, reject) => {
+              const u = new URL(url);
+              https.get({
+                hostname: u.hostname,
+                path: u.pathname + u.search,
+                headers: {
+                  'Authorization': 'Bearer ' + process.env.GH_TOKEN,
+                  'User-Agent': 'zarr-conventions-registry',
+                  'Accept': 'application/vnd.github.raw'
+                }
+              }, res => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => resolve(data));
+              }).on('error', reject);
+            });
+          }
+
+          async function main() {
+            const fs = require('fs');
+
+            // Get open PRs with staged label
+            const prs = await ghFetch('/repos/pvanlaake/zarr-conventions-registry/pulls?state=open&per_page=100');
+            const staged = prs.filter(pr =>
+              pr.labels && pr.labels.some(l => l.name === 'staged')
+            );
+            console.log('Found ' + staged.length + ' staged PRs');
+
+            const entries = [];
+            for (const pr of staged) {
+              // Get files changed in this PR
+              const files = await ghFetch('/repos/pvanlaake/zarr-conventions-registry/pulls/' + pr.number + '/files');
+              const submissionFiles = files.filter(f =>
+                f.filename.startsWith('submissions/') &&
+                f.filename.endsWith('.json') &&
+                f.status === 'added'
+              );
+
+              for (const file of submissionFiles) {
+                try {
+                  const content = await rawFetch(file.raw_url);
+                  const entry = JSON.parse(content);
+                  // Add PR number for linking
+                  entry._pr_number = pr.number;
+                  entry._pr_url = pr.html_url;
+                  entries.push(entry);
+                  console.log('Added staged entry: ' + entry.name);
+                } catch (e) {
+                  console.error('Could not parse ' + file.filename + ': ' + e.message);
+                }
+              }
+            }
+
+            entries.sort((a, b) => {
+              const da = a.submitted ? new Date(a.submitted) : new Date();
+              const db = b.submitted ? new Date(b.submitted) : new Date();
+              // Sort by days remaining ascending (oldest submission first)
+              return da - db;
+            });
+
+            fs.writeFileSync('site/staged.json', JSON.stringify(entries, null, 2));
+            console.log('staged.json built with ' + entries.length + ' entries');
+          }
+
+          main().catch(e => { console.error(e); process.exit(1); });
+          "
+
+      - name: Commit staged catalog
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add site/staged.json
+          git diff --staged --quiet || git commit -m "Rebuild staged catalog from open PRs [bot]"
+          git push
 
   # ── Accept submissions and build on push to main ─────────────────────────
   accept-submissions:

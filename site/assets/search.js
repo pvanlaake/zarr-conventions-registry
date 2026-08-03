@@ -209,7 +209,7 @@ function renderCard(entry) {
 
   const prLink = config.showPrLink
     ? `<a class="card-pr-link"
-          href="https://github.com/pvanlaake/zarr-conventions-registry/pulls?q=is%3Apr+is%3Aopen+${esc(entry.uuid)}"
+          href="${esc(entry._pr_url || "https://github.com/pvanlaake/zarr-conventions-registry/pulls?q=is%3Apr+is%3Aopen+" + entry.uuid)}"
           target="_blank" rel="noopener"
           onclick="event.stopPropagation()">
           Review on GitHub →
@@ -349,8 +349,8 @@ function openModal(entry, addToStack = true) {
              : ""
          }
          <p style="margin-top:0.5rem">
-           <a href="https://github.com/pvanlaake/zarr-conventions-registry/pulls?q=is%3Apr+is%3Aopen+${esc(entry.uuid)}"
-              target="_blank" rel="noopener">
+           <a href="${esc(entry._pr_url || "https://github.com/pvanlaake/zarr-conventions-registry/pulls?q=is%3Apr+is%3Aopen+" + entry.uuid)}"
+             target="_blank" rel="noopener">
              View PR and leave comments on GitHub →
            </a>
          </p>
