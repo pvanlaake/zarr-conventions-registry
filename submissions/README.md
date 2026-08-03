@@ -112,8 +112,12 @@ ease of editing and validation.
 Open a PR against `main`. Use the PR template and fill in the **New convention
 submission** section. Delete the other sections.
 
+Commit the PR to a new branch.
+
 The validation workflow will run automatically. If it passes, the PR will be
 labelled `staged` and a comment will be posted with the review period end date.
+It will take a few minutes befor the new submission shows up in the online
+registry.
 
 ### 5. Community review
 
