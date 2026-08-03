@@ -6,7 +6,7 @@
     "key": "geolocation"
   },
   "title": "Geolocation Convention",
-  "description": "Some geospatial data sets do not have a simple coordinate reference system. A typical example would be a level-1 swath satellite image. Such data sets may have ancillary data structures to provide the geolocation data for the elements in the image, one array for each of longitude and latitude. This convention provides a standard mechanism to refer to such geolocation arrays from the data arrays whose coordinates need to be determined.",
+  "description": "Some geospatial data sets do not have a simple coordinate reference system. A typical example would be a level-1 swath satellite image. Such data sets may have ancillary data structures to provide the geolocation data for the elements in the image, one array for each of longitude and latitude. This convention provides a standard mechanism to refer to such geolocation arrays from the data arrays whose coordinates need to be determined. ",
   "spec_url": "https://raw.githubusercontent.com/R-CF/zarr_convention_geolocation/main/README.md",
   "schema_url": "https://raw.githubusercontent.com/R-CF/zarr_convention_geolocation/main/schema.json",
   "maintainers": [
