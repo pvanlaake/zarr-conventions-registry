@@ -141,7 +141,7 @@ jobs:
             });
 
   build-staged-catalog:
-    needs: [accept-submissions]
+    needs: [accept-submissions, stage-submission]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -262,6 +262,21 @@ jobs:
           git add site/staged.json
           git diff --staged --quiet || git commit -m "Rebuild staged catalog from open PRs [bot]"
           git push
+
+      - name: Setup Pages
+        if: github.event_name == 'pull_request'
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name == 'pull_request'
+        id: deployment
+        uses: actions/deploy-pages@v4
 
   # ── Accept submissions and build on push to main ─────────────────────────
   accept-submissions:
