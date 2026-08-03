@@ -3,8 +3,8 @@ name: Validate submission
 on:
   pull_request:
     paths:
-      - "submissions/**.json"
-      - "registry/**.json"
+      - "submissions/*.json"
+      - "registry/*.json"
 
 jobs:
   validate:
