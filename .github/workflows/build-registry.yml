@@ -141,7 +141,7 @@ jobs:
             });
 
   build-staged-catalog:
-    needs: []
+    needs: [accept-submissions]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -356,12 +356,6 @@ jobs:
             .sort((a, b) => (a.status_changed || '').localeCompare(b.status_changed || ''));
           fs.writeFileSync('site/deprecated.json', JSON.stringify(deprecated, null, 2));
           console.log('deprecated.json: ' + deprecated.length + ' entries');
-
-          // ── Staging catalog (submissions) ──
-          const staged = loadDir('submissions')
-            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-          fs.writeFileSync('site/staged.json', JSON.stringify(staged, null, 2));
-          console.log('staged.json: ' + staged.length + ' entries');
           "
 
       - name: Build search index
@@ -387,7 +381,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add site/catalog.json site/deprecated.json site/staged.json site/assets/search-index.json
+          git add site/catalog.json site/deprecated.json site/assets/search-index.json
           git diff --staged --quiet || git commit -m "Rebuild catalogs and search index [bot]"
           git push
 
