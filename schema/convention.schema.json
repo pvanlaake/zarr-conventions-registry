@@ -152,11 +152,6 @@
       "type": "string",
       "format": "date",
       "description": "Date of most recent maturity status change, updated by the registry CDG"
-    },
-    "submitted": {
-      "type": "string",
-      "format": "date",
-      "description": "Date of submission to the registry, set automatically by the workflow on PR open"
     }
   }
 }
