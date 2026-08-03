@@ -186,23 +186,35 @@ jobs:
 
           function rawFetch(url) {
             return new Promise((resolve, reject) => {
-              const u = new URL(url);
-              https.get({
-                hostname: u.hostname,
-                path: u.pathname + u.search,
-                headers: {
-                  'Authorization': 'Bearer ' + process.env.GH_TOKEN,
-                  'User-Agent': 'zarr-conventions-registry',
-                  'Accept': 'application/vnd.github.raw'
-                }
-              }, res => {
-                let data = '';
-                res.on('data', chunk => data += chunk);
-                res.on('end', () => resolve(data));
-              }).on('error', reject);
+              function get(url, redirectCount) {
+                if (redirectCount > 5) return reject(new Error('Too many redirects'));
+                const u = new URL(url);
+                const options = {
+                  hostname: u.hostname,
+                  path: u.pathname + u.search,
+                  headers: {
+                    'Authorization': 'Bearer ' + process.env.GH_TOKEN,
+                    'User-Agent': 'zarr-conventions-registry',
+                    'Accept': 'application/vnd.github.raw+json'
+                  }
+                };
+                https.get(options, res => {
+                  if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307) {
+                    return get(res.headers.location, redirectCount + 1);
+                  }
+                  if (res.statusCode !== 200) {
+                    return reject(new Error('HTTP ' + res.statusCode + ' for ' + url));
+                  }
+                  const chunks = [];
+                  res.on('data', chunk => chunks.push(chunk));
+                  res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+                  res.on('error', reject);
+                }).on('error', reject);
+              }
+              get(url, 0);
             });
           }
-
+            
           async function main() {
             const fs = require('fs');
 
