@@ -36,13 +36,19 @@ const config = CONFIG[PAGE] || CONFIG.registered;
 
 // ── Boot ───────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", async () => {
-  await loadCatalog();
-  if (config.showSearch) {
-    buildTagFilter();
-    bindSearchEvents();
+  try {
+    await loadCatalog();
+    if (config.showSearch) {
+      buildTagFilter();
+      bindSearchEvents();
+    }
+    renderAll(catalog);
+    bindModalEvents();
+  } catch (err) {
+    console.error("Boot error:", err);
+    document.getElementById("results").innerHTML =
+      `<p class="empty">Error: ${err.message}</p>`;
   }
-  renderAll(catalog);
-  bindModalEvents();
 });
 
 // ── Data ───────────────────────────────────────────────────────────────────
@@ -53,6 +59,14 @@ async function loadCatalog() {
     const res = await fetch(config.catalog);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     catalog = await res.json();
+    console.log("Catalog loaded:", catalog.length, "entries", "PAGE:", PAGE);
+    console.log(
+      "First entry:",
+      catalog.length > 0 ? JSON.stringify(catalog[0]).slice(0, 200) : "none",
+    );
+    catalog.forEach((e) => {
+      nameIndex[e.uuid] = e.name;
+    });
 
     // Load all catalogs for name resolution across pages
     const allCatalogs = await Promise.allSettled([
@@ -60,18 +74,14 @@ async function loadCatalog() {
       fetch("staged.json").then((r) => r.json()),
       fetch("deprecated.json").then((r) => r.json()),
     ]);
+
+    window._allEntries = [];
     allCatalogs.forEach((result) => {
       if (result.status === "fulfilled") {
         result.value.forEach((e) => {
           nameIndex[e.uuid] = e.name;
-          // Cache all entries for cross-catalog navigation
-          window._allEntries = [];
-          allCatalogs.forEach((result) => {
-            if (result.status === "fulfilled") {
-              window._allEntries.push(...result.value);
-            }
-          });
         });
+        window._allEntries.push(...result.value);
       }
     });
 
