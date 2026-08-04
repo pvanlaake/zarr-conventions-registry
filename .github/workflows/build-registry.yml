@@ -151,122 +151,77 @@ jobs:
         with:
           ref: main
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install dependencies
-        run: npm install ajv ajv-formats
-
-      - name: Build staged catalog from open PRs
+      - name: Build staged catalog
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node -e "
-          const https = require('https');
+          REPO="${{ github.repository }}"
+          ENTRIES="[]"
 
-          function ghFetch(path) {
-            return new Promise((resolve, reject) => {
-              const options = {
-                hostname: 'api.github.com',
-                path,
-                headers: {
-                  'Authorization': 'Bearer ' + process.env.GH_TOKEN,
-                  'User-Agent': 'zarr-conventions-registry',
-                  'Accept': 'application/vnd.github.v3+json'
-                }
-              };
-              https.get(options, res => {
-                let data = '';
-                res.on('data', chunk => data += chunk);
-                res.on('end', () => resolve(JSON.parse(data)));
-              }).on('error', reject);
-            });
-          }
+          # Get all open PRs
+          PRS=$(curl -s \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${REPO}/pulls?state=open&per_page=100")
 
-          function rawFetch(url) {
-            return new Promise((resolve, reject) => {
-              function get(url, redirectCount) {
-                if (redirectCount > 5) return reject(new Error('Too many redirects'));
-                const u = new URL(url);
-                const options = {
-                  hostname: u.hostname,
-                  path: u.pathname + u.search,
-                  headers: {
-                    'Authorization': 'Bearer ' + process.env.GH_TOKEN,
-                    'User-Agent': 'zarr-conventions-registry',
-                    'Accept': 'application/vnd.github.raw+json'
-                  }
-                };
-                https.get(options, res => {
-                  if (res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307) {
-                    return get(res.headers.location, redirectCount + 1);
-                  }
-                  if (res.statusCode !== 200) {
-                    return reject(new Error('HTTP ' + res.statusCode + ' for ' + url));
-                  }
-                  const chunks = [];
-                  res.on('data', chunk => chunks.push(chunk));
-                  res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-                  res.on('error', reject);
-                }).on('error', reject);
-              }
-              get(url, 0);
-            });
-          }
+          echo "Open PRs found: $(echo "$PRS" | jq 'length')"
 
-          async function main() {
-            const fs = require('fs');
+          # Filter to staged PRs
+          STAGED_NUMBERS=$(echo "$PRS" | jq -r '.[] | select(.labels[].name == "staged") | .number')
+          echo "Staged PR numbers: $STAGED_NUMBERS"
 
-            // Get open PRs with staged label
-            const prs = await ghFetch('/repos/pvanlaake/zarr-conventions-registry/pulls?state=open&per_page=100');
-            const staged = prs.filter(pr =>
-              pr.labels && pr.labels.some(l => l.name === 'staged')
-            );
-            console.log('Found ' + staged.length + ' staged PRs');
+          for PR_NUMBER in $STAGED_NUMBERS; do
+            echo "Processing PR #$PR_NUMBER"
 
-            const entries = [];
-            for (const pr of staged) {
-              // Get files changed in this PR
-              const files = await ghFetch('/repos/pvanlaake/zarr-conventions-registry/pulls/' + pr.number + '/files');
-              const submissionFiles = files.filter(f =>
-                f.filename.startsWith('submissions/') &&
-                f.filename.endsWith('.json') &&
-                f.status === 'added'
-              );
+            PR_DATA=$(echo "$PRS" | jq ".[] | select(.number == $PR_NUMBER)")
+            PR_URL=$(echo "$PR_DATA" | jq -r '.html_url')
+            PR_CREATED=$(echo "$PR_DATA" | jq -r '.created_at | .[0:10]')
 
-              for (const file of submissionFiles) {
-                try {
-                  const content = await rawFetch(file.raw_url);
-                  const entry = JSON.parse(content);
-                  entry._pr_number = pr.number;
-                  entry._pr_url = pr.html_url;
-                  // Use PR creation date as submission date if not set
-                  if (!entry.submitted) {
-                    entry.submitted = pr.created_at.split('T')[0];
-                  }
-                  entries.push(entry);
-                  console.log('Added staged entry: ' + entry.name);
-                } catch (e) {
-                  console.error('Could not parse ' + file.filename + ': ' + e.message);
-                }
-              }
-            }
+            # Get files in this PR
+            PR_FILES=$(curl -s \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${REPO}/pulls/${PR_NUMBER}/files")
 
-            entries.sort((a, b) => {
-              const da = a.submitted ? new Date(a.submitted) : new Date();
-              const db = b.submitted ? new Date(b.submitted) : new Date();
-              // Sort by days remaining ascending (oldest submission first)
-              return da - db;
-            });
+            echo "Files in PR: $(echo "$PR_FILES" | jq 'length')"
 
-            fs.writeFileSync('site/staged.json', JSON.stringify(entries, null, 2));
-            console.log('staged.json built with ' + entries.length + ' entries');
-          }
+            # Get submission file URLs
+            RAW_URLS=$(echo "$PR_FILES" | jq -r '.[] | select(.status == "added") | select(.filename | startswith("submissions/")) | select(.filename | endswith(".json")) | .raw_url')
 
-          main().catch(e => { console.error(e); process.exit(1); });
-          "
+            for RAW_URL in $RAW_URLS; do
+              echo "Fetching: $RAW_URL"
+
+              CONTENT=$(curl -s \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -L \
+                "$RAW_URL")
+
+              echo "Content length: ${#CONTENT}"
+              echo "First 100 chars: ${CONTENT:0:100}"
+
+              # Validate it's parseable JSON
+              if ! echo "$CONTENT" | jq . > /dev/null 2>&1; then
+                echo "ERROR: Invalid JSON from $RAW_URL"
+                echo "Full content: $CONTENT"
+                continue
+              fi
+
+              # Inject PR metadata and add to entries
+              ENTRY=$(echo "$CONTENT" | jq \
+                --arg pr_url "$PR_URL" \
+                --argjson pr_number "$PR_NUMBER" \
+                --arg created "$PR_CREATED" \
+                '. + {_pr_url: $pr_url, _pr_number: $pr_number, submitted: (if .submitted then .submitted else $created end)}')
+
+              ENTRIES=$(echo "$ENTRIES" | jq ". + [$ENTRY]")
+              echo "Added entry: $(echo "$ENTRY" | jq -r '.name')"
+            done
+          done
+
+          # Sort by submitted date ascending
+          SORTED=$(echo "$ENTRIES" | jq 'sort_by(.submitted)')
+          echo "$SORTED" > site/staged.json
+          echo "staged.json built with $(echo "$SORTED" | jq 'length') entries"
 
       - name: Commit staged catalog
         run: |
