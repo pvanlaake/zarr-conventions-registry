@@ -141,7 +141,7 @@ jobs:
               ].join('\n')
             });
 
-  build-staged-catalog:
+build-staged-catalog:
     needs: [accept-submissions, stage-submission]
     if: always()
     runs-on: ubuntu-latest
@@ -177,7 +177,6 @@ jobs:
             PR_URL=$(echo "$PR_DATA" | jq -r '.html_url')
             PR_CREATED=$(echo "$PR_DATA" | jq -r '.created_at | .[0:10]')
 
-            # Get files in this PR
             PR_FILES=$(curl -s \
               -H "Authorization: Bearer $GH_TOKEN" \
               -H "Accept: application/vnd.github.v3+json" \
@@ -185,7 +184,6 @@ jobs:
 
             echo "Files in PR: $(echo "$PR_FILES" | jq 'length')"
 
-            # Get submission file URLs
             RAW_URLS=$(echo "$PR_FILES" | jq -r '.[] | select(.status == "added") | select(.filename | startswith("submissions/")) | select(.filename | endswith(".json")) | .raw_url')
 
             for RAW_URL in $RAW_URLS; do
@@ -197,16 +195,13 @@ jobs:
                 "$RAW_URL")
 
               echo "Content length: ${#CONTENT}"
-              echo "First 100 chars: ${CONTENT:0:100}"
 
-              # Validate it's parseable JSON
               if ! echo "$CONTENT" | jq . > /dev/null 2>&1; then
                 echo "ERROR: Invalid JSON from $RAW_URL"
                 echo "Full content: $CONTENT"
                 continue
               fi
 
-              # Inject PR metadata and add to entries
               ENTRY=$(echo "$CONTENT" | jq \
                 --arg pr_url "$PR_URL" \
                 --argjson pr_number "$PR_NUMBER" \
@@ -218,19 +213,83 @@ jobs:
             done
           done
 
-          # Sort by submitted date ascending
           SORTED=$(echo "$ENTRIES" | jq 'sort_by(.submitted)')
           echo "$SORTED" > site/staged.json
           echo "staged.json built with $(echo "$SORTED" | jq 'length') entries"
 
-      - name: Commit staged catalog
+      - name: Build full site catalogs
+        run: |
+          node -e "
+          const fs = require('fs');
+          const path = require('path');
+
+          function loadDir(dir) {
+            if (!fs.existsSync(dir)) return [];
+            return fs.readdirSync(dir)
+              .filter(f => f.endsWith('.json'))
+              .map(f => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
+          }
+
+          const all = loadDir('registry');
+          const usedBy = {};
+          all.forEach(e => {
+            (e.composes || []).forEach(uuid => {
+              if (!usedBy[uuid]) usedBy[uuid] = [];
+              usedBy[uuid].push(e.uuid);
+            });
+          });
+
+          const registered = all
+            .filter(e => e.maturity !== 'deprecated')
+            .map(e => ({ ...e, used_by: usedBy[e.uuid] || [] }))
+            .sort((a, b) => (a.registered || '').localeCompare(b.registered || ''));
+          fs.writeFileSync('site/catalog.json', JSON.stringify(registered, null, 2));
+          console.log('catalog.json: ' + registered.length + ' entries');
+
+          const deprecated = all
+            .filter(e => e.maturity === 'deprecated')
+            .map(e => ({ ...e, used_by: usedBy[e.uuid] || [] }))
+            .sort((a, b) => (a.status_changed || '').localeCompare(b.status_changed || ''));
+          fs.writeFileSync('site/deprecated.json', JSON.stringify(deprecated, null, 2));
+          console.log('deprecated.json: ' + deprecated.length + ' entries');
+
+          const index = registered.map(e => ({
+            uuid: e.uuid,
+            name: e.name,
+            namespace_key: e.namespace ? e.namespace.key : '',
+            title: e.title || '',
+            description: e.description,
+            tags: (e.tags || []).join(' '),
+            maturity: e.maturity || '',
+            maintainers: (e.maintainers || []).join(' ')
+          }));
+          fs.writeFileSync('site/assets/search-index.json', JSON.stringify(index, null, 2));
+          console.log('search-index.json: ' + index.length + ' entries');
+          "
+
+      - name: Commit all site artifacts
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add site/staged.json
-          git diff --staged --quiet || git commit -m "Rebuild staged catalog from open PRs [bot]"
+          git add site/staged.json site/catalog.json site/deprecated.json site/assets/search-index.json
+          git diff --staged --quiet || git commit -m "Rebuild all catalogs [bot]"
           git push
 
+      - name: Setup Pages
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site/
+
+      - name: Deploy to GitHub Pages
+        if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+        id: deployment
+        uses: actions/deploy-pages@v4
+        
   # ── Accept submissions and build on push to main ─────────────────────────
   accept-submissions:
     if: github.event_name == 'push'
