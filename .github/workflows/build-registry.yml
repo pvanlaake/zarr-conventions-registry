@@ -141,7 +141,7 @@ jobs:
               ].join('\n')
             });
 
-build-staged-catalog:
+  build-staged-catalog:
     needs: [accept-submissions, stage-submission]
     if: always()
     runs-on: ubuntu-latest
