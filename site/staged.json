@@ -43,7 +43,7 @@
       "key": "table:"
     },
     "title": "Table Convention",
-    "description": "The table convention describes how to store tabular (row/column) data as a Zarr group, where each column of the table is stored as a separate, row-aligned Zarr array.",
+    "description": "The table convention describes how to store tabular (row/column) data as a Zarr group,  where each column of the table is stored as a separate, row-aligned Zarr array.",
     "spec_url": "https://github.com/R-CF/zarr_convention_table/blob/main/README.md",
     "schema_url": "https://raw.githubusercontent.com/R-CFe/zarr_convention_table/main/schema.json",
     "maintainers": [
