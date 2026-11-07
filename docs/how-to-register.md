@@ -12,7 +12,7 @@ Register a convention when:
 - You have a specification document that is publicly accessible
 - You have a JSON schema for the convention's metadata
 - At least one implementation exists or is in active development
-- You want the convention to be discoverable by others
+- You want the convention to be discoverable by others.
 
 You do not need to wait until the convention is stable. Conventions at
 `proposed` maturity are welcome — the registry records the maturity level
@@ -34,16 +34,17 @@ URL or a malformed JSON entry, not for design disagreements.
 ## Versioning
 
 Conventions are encouraged to use semantic versioning. The registry enforces
-one rule: a major version bump requires a new UUID. Minor and patch version
-changes may be applied to an existing registry entry via a modification PR.
+one rule: a major version bump requires a new registry entry. Minor and patch
+version changes may be applied to an existing registry entry via a modification
+PR.
 
 The rationale is that a major version change represents a breaking change
 that existing implementers cannot safely upgrade to without review. A new
-UUID gives the new major version its own identity and allows both versions
-to coexist in the registry.
+registry entry gives the new major version its own identity and allows all
+versions to coexist in the registry.
 
 Versioning is required for a convention to reach Candidate maturity level. A
-Stable maturity level requires the version to be at least "v.1".
+Stable maturity level requires the version to be at least "v1.0.0".
 
 ## Superseding a convention
 
@@ -70,4 +71,4 @@ automated checks only, auto-merge after 7 days with no objection or
 immediately on CDG approval.
 
 Material changes — name, namespace, spec URL, schema URL, description,
-or composition relationships — require a new convention entry with a new UUID.
+or composition relationships — require a new convention entry.

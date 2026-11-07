@@ -16,7 +16,7 @@ A submission is likely to be accepted if:
 - The namespace key does not conflict with an existing registered convention
   (unless the submission supersedes it, in which case add a `supersedes` field)
 - At least one implementation exists or is in active development
-- The submitter is reachable as a maintainer
+- The submitter is reachable as a maintainer.
 
 A submission may be rejected if the specification is inaccessible, the JSON is
 malformed, or the convention duplicates an existing one without meaningful
@@ -189,8 +189,7 @@ in `registry/` directly. Only the following fields may be modified:
 | `supersedes`      | UUID of the convention this one supersedes                             |
 
 Changes to `uuid`, `name`, `namespace`, `spec_url`, `schema_url`, `description`,
-or `composes` are considered material changes and require a new convention entry
-with a new UUID.
+or `composes` are considered material changes and require a new convention entry.
 
 ## Questions
 

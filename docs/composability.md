@@ -15,7 +15,7 @@ for registered conventions since it is the most stable identifier:
 ```json
 {
   "zarr_conventions": [
-    { "uuid": "uuid-of-cs" },
+    { "uuid": "uuid-of-spatial" },
     { "uuid": "uuid-of-proj" },
     { "uuid": "uuid-of-multiscales" }
   ]
@@ -84,14 +84,19 @@ When a convention declares a version, semantic versioning rules apply:
 - A reader implementing version `1.2.0` of a convention can safely read
   data written with any `1.x.y` version
 - A reader implementing version `1.x.y` cannot safely read data written
-  with version `2.0.0` — a major version change is a breaking change
+  with version `2.0.0` — a major version change is a breaking change.
 
-Data producers should include the convention version in the
+Data producers should include the schema URL inclusive of the version in the
 `zarr_conventions` attribute where precision matters:
 
 ```json
 {
-  "zarr_conventions": [{ "uuid": "uuid-of-convention", "version": "1.2.0" }]
+  "zarr_conventions": [
+    {
+      "uuid": "uuid-of-convention",
+      "schema_url": "https://zarr.my.org/my-convention-v1.2.0.json"
+    }
+  ]
 }
 ```
 

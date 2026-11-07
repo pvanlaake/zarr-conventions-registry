@@ -65,7 +65,7 @@ supported by the tooling your community uses. Common choices are:
 
 - Draft 7 — widest tooling support
 - Draft 2019-09 — adds `$vocabulary` and other useful features
-- Draft 2020-12 — current standard, best for new conventions
+- Draft 2020-12 — current standard, best for new conventions.
 
 Document the draft version in your specification and declare it in the
 schema's `$schema` field.
@@ -76,7 +76,7 @@ Use semantic versioning (`MAJOR.MINOR.PATCH`):
 
 - `PATCH` — backwards-compatible fixes, clarifications, editorial changes
 - `MINOR` — backwards-compatible additions, new optional attributes
-- `MAJOR` — breaking changes; requires a new registry entry with a new UUID
+- `MAJOR` — breaking changes; requires a new registry entry.
 
 If your convention is not yet stable enough for versioning, set `version`
 to `null` in the registry entry and add a version once the specification
@@ -89,7 +89,7 @@ using their registry UUIDs. This serves two purposes:
 
 - It signals to implementers what else they need to support
 - It allows the registry to compute and display the reverse relationship
-  ("used by") automatically
+  ("used by") automatically.
 
 Composition is directional: if `cs` composes `proj`, then `cs` depends on
 `proj` — not the other way around. Do not add reverse references. A

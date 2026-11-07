@@ -3,3 +3,4 @@ site/deprecated.json
 site/staged.json
 site/assets/search-index.json
 build-catalog-local.js
+.DS_Store
